@@ -1,0 +1,6 @@
+﻿fastapi
+uvicorn[standard]
+boto3
+PyJWT[crypto]
+python-dotenv
+pydantic>=2
