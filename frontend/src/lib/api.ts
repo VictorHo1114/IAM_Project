@@ -75,14 +75,15 @@ export async function listMyFiles(idToken: string) {
 }
 
 // 2) 下載連結：/upload/download-url（用 body 傳 fileId）
-export async function getDownloadUrl(idToken: string, fileId: string) {
+export async function getDownloadUrl(idToken: string, PK: string) {
   const r = await fetch(url("/upload/download-url"), {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders(idToken) },
-    body: JSON.stringify({ fileId }),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({PK}), // 後端也改用 PK
   });
   return handle(r) as Promise<{ url: string }>;
 }
+
 
 /** 方便測試的工具：在 Console 打 testAuth() 就能驗簽 */
 export async function testAuth() {
@@ -97,4 +98,17 @@ export async function testAuth() {
   } catch (e) {
     console.error("❌ /auth/me failed", e);
   }
+}
+
+// 刪除檔案
+export async function deleteFile(idToken: string, PK: string) {
+  const r = await fetch(url("/upload/delete"), {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ PK }),
+  });
+  return handle(r);
 }

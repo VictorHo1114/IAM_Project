@@ -3,6 +3,7 @@ import TeacherUpload from "./components/teacherUpload";
 import StudentFiles from "./components/studentFiles";
 import { getMe } from "./lib/api";        // 用來呼叫後端 /auth/me 驗簽
 import { login, logout } from "./auth/login";  // 登入/登出 Cognito Hosted UI
+import { ArrowRightOnRectangleIcon,BuildingOffice2Icon,ArrowRightEndOnRectangleIcon} from "@heroicons/react/24/outline";//引入heroicons
 
 export default function App() {
   // 前端本地狀態
@@ -42,9 +43,15 @@ export default function App() {
   if (!idToken) {
     return (
       <div style={{ padding: 24 }}>
-        <h2>School Files</h2>
-        <p>請先登入取得 id_token。</p>
-        <button onClick={login}>登入（Cognito Hosted UI）</button>
+        <h2>
+          <BuildingOffice2Icon style={{ marginRight: 4, width: "30px", height: "30px" ,transform: "translateY(4px)" }}/>
+          School Files
+        </h2>
+        <p>請先登入取得使用權限</p>
+        <button onClick={login}>
+        <ArrowRightEndOnRectangleIcon className="h-5 w-5" />
+          登入
+        </button>
       </div>
     );
   }
@@ -60,18 +67,52 @@ export default function App() {
   // 已登入後的畫面
   return (
     <div style={{ padding: 24 }}>
-      <h2>School Files</h2>
-
-      {/* 登出按鈕 */}
-      <div style={{ marginBottom: 12 }}>
-        <button onClick={logout}>登出</button>
+      {/* 右上帳號+登出 */}
+      <div
+        style={{
+          position: "fixed",
+          top: 24,
+          right: 32,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          zIndex: 100,
+        }}
+      >
+        <span style={{ fontWeight: 600, color: "#333" }}>
+          {me?.username || me?.email || "使用者"}
+        </span>
+        <button
+          onClick={logout}
+          // style={{
+          //   padding: "6px 18px",
+          //   borderRadius: 20,
+          //   border: "none",
+          //   background: "linear-gradient(90deg,#ff5858,#f09819)",
+          //   color: "#fff",
+          //   fontWeight: 600,
+          //   cursor: "pointer",
+          //   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          //   display: "flex",
+          //   alignItems: "center",
+          //   gap: 6,
+          // }}
+        >
+          <ArrowRightOnRectangleIcon className="h-5 w-5" />
+          登出
+        </button>
       </div>
+
+      <h2>
+        <BuildingOffice2Icon style={{ marginRight: 4, width: "30px", height: "30px" ,transform: "translateY(4px)" }}/>
+        School Files
+      </h2>
 
       {/* 顯示錯誤訊息（例如 token 過期） */}
       {err && <div style={{ color: "red" }}>{err}</div>}
 
       {/* 顯示目前使用者資訊（方便 debug） */}
-      <pre style={{ background: "#111", color: "#eee", padding: 12, borderRadius: 8 }}>
+      {/* <pre style={{ background: "#111", color: "#eee", padding: 12, borderRadius: 8 }}>
         {JSON.stringify(
           {
             sub: me?.sub,
@@ -81,7 +122,7 @@ export default function App() {
           },
           null, 2
         )}
-      </pre>
+      </pre> */}
 
       {/* 如果是老師或管理員 → 顯示上傳功能 */}
       {(isTeacher || isAdmin) && <TeacherUpload idToken={idToken} />}

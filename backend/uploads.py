@@ -4,7 +4,7 @@ import uuid
 import time
 from datetime import datetime, timezone
 import boto3
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException,Body
 from pydantic import BaseModel
 from auth import current_user  # 直接沿用你的驗簽與使用者解析
 
@@ -163,12 +163,15 @@ class DownloadReq(BaseModel):
     fileId: str
 
 @router.post("/download-url")
-def get_download_url(body: DownloadReq, user=Depends(current_user)):
-    file_id = body.fileId
+def get_download_url(body: dict, user=Depends(current_user)):
+    pk = body.get("PK")
+    if not pk:
+        raise HTTPException(status_code=422, detail="PK is required")
+
     groups = set(user.get("groups", []))
     role = "Admin" if "Admin" in groups else ("Teacher" if "Teacher" in groups else "Student")
 
-    r = tbl_files.get_item(Key={"PK": f"FILE#{file_id}", "SK": "META"})
+    r = tbl_files.get_item(Key={"PK": pk, "SK": "META"})
     item = r.get("Item")
     if not item:
         raise HTTPException(404, "File not found")
@@ -203,4 +206,44 @@ def list_for_student(user=Depends(current_user)):
     items.sort(key=lambda x: x.get("uploadedAt", ""), reverse=True)
     return {"items": items}
 
+# ======= 老師端：刪除檔案 =======
+class DeleteReq(BaseModel):
+    PK: str
 
+@router.post("/delete")
+def delete_file(req: DeleteReq, user=Depends(current_user)):
+    PK = req.PK
+    if not PK:
+        raise HTTPException(422, "PK is required")
+
+    groups = set(user.get("groups", []))
+    if "Teacher" not in groups and "Admin" not in groups:
+        raise HTTPException(403, "Only Teacher/Admin can delete files")
+
+    # 取得檔案紀錄
+    r = tbl_files.get_item(Key={"PK": PK, "SK": "META"})
+    item = r.get("Item")
+    if not item:
+        raise HTTPException(404, "File not found")
+
+    # 驗證擁有者
+    teacher_id = user.get("teacherId") or user.get("sub")
+    if item["teacherId"] != teacher_id and "Admin" not in groups:
+        raise HTTPException(403, "You cannot delete this file")
+    
+    # 刪除 S3
+    try:
+        s3.delete_object(Bucket=S3_BUCKET, Key=item["s3Key"])
+    except s3.exceptions.ClientError as e:
+        code = e.response["Error"]["Code"]
+        if code == "AccessDenied":
+            raise HTTPException(403, detail=f"S3 delete failed: AccessDenied")
+        else:
+            raise HTTPException(400, detail=f"S3 delete failed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(400, detail=f"S3 delete failed: {str(e)}")
+
+    # 刪除 DynamoDB 紀錄
+    tbl_files.delete_item(Key={"PK": PK, "SK": "META"})
+
+    return {"success": True, "PK": PK}
